@@ -28,12 +28,18 @@ func Run(home, cwd string) (string, error) {
 }
 
 // buildClaudeArgs returns the CLI args for the probe Claude invocation.
-// The probe sends prompt "exit" to a cheap model and asks for JSON output
-// so the session terminates immediately and writes a JSONL transcript.
+// The probe sends prompt "exit" to whichever model the user has configured
+// as default, then asks for JSON output so the session terminates
+// immediately and writes a JSONL transcript.
+//
+// We deliberately do NOT pin --model: different models receive different
+// system prompts and tool schemas from the harness, so pinning a cheap
+// model (e.g. Haiku) would measure a model-specific harness that doesn't
+// match the user's real interactive sessions. Letting claude pick its
+// default makes the measurement match what /context reports.
 func buildClaudeArgs(sessionID string) []string {
 	return []string{
 		"--session-id", sessionID,
-		"--model", "haiku",
 		"-p", "exit",
 		"--output-format", "json",
 	}

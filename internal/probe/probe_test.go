@@ -5,18 +5,21 @@ import (
 	"testing"
 )
 
-func TestBuildClaudeArgs_IncludesHaikuAndExit(t *testing.T) {
+func TestBuildClaudeArgs_IncludesExitAndNoModel(t *testing.T) {
 	args := buildClaudeArgs("11111111-2222-3333-4444-555555555555")
 	joined := strings.Join(args, " ")
 	for _, w := range []string{
 		"--session-id", "11111111-2222-3333-4444-555555555555",
-		"--model", "haiku",
 		"-p", "exit",
 		"--output-format", "json",
 	} {
 		if !strings.Contains(joined, w) {
 			t.Fatalf("missing %q in args: %v", w, args)
 		}
+	}
+	// Probe must NOT pin --model — see buildClaudeArgs doc comment.
+	if strings.Contains(joined, "--model") {
+		t.Fatalf("probe args should not pin --model, got: %v", args)
 	}
 }
 

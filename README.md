@@ -27,9 +27,9 @@ go install github.com/jamessawle/context-audit/cmd/context-audit@latest
 context-audit --startup
 ```
 
-Run from the directory you want to audit. The tool spawns a single Haiku-backed Claude session whose only purpose is to record the harness's start-up context, then prints components ranked by **byte size**.
+Run from the directory you want to audit. The tool spawns a single Claude session whose only purpose is to record the harness's start-up context, then prints components ranked by **byte size**.
 
-**Cost:** one short Haiku probe call per run (a few cents on your Claude account). No API key needed beyond a working `claude` CLI.
+**Cost:** one short probe call per run, using whichever model your `claude` CLI is configured to default to (so the measurement matches what you'd see in `/context` for a real interactive session — different models receive different harness content). Cold-cache cost on Opus is roughly $0.60; subsequent warm-cache runs within ~5 minutes are an order of magnitude cheaper. No API key needed beyond a working `claude` CLI.
 
 **Output:** a table of `BYTES  COMPONENT`, sorted descending. Below the table, a footer reports the harness's recorded input-token total for orientation — this includes the built-in system prompt and built-in tool schemas, which are not broken down per row (they aren't actionable individually).
 

@@ -19,3 +19,18 @@ computed by subtraction. MCP tools at startup appear only as names (their
 schemas are deferred) and are broken down per server, so dropping an unused
 MCP server is an actionable result.
 See [`docs/adr/0001-session-jsonl-as-input.md`](docs/adr/0001-session-jsonl-as-input.md).
+
+## Usage
+
+```sh
+go install github.com/jamessawle/context-audit/cmd/context-audit@latest
+context-audit --startup
+```
+
+Run from the directory you want to audit. The tool spawns a single Haiku-backed Claude session whose only purpose is to record the harness's start-up context, then prints components ranked by **byte size**.
+
+**Cost:** one short Haiku probe call per run (a few cents on your Claude account). No API key needed beyond a working `claude` CLI.
+
+**Output:** a table of `BYTES  COMPONENT  ACTION`, sorted descending. Below the table, a footer reports the harness's recorded input-token total for orientation — this includes the built-in system prompt and built-in tool schemas, which are not broken down per row (they aren't actionable individually).
+
+**Why bytes, not tokens?** Token-accurate per-component sizing would require an API key and an HTTP call per component. Ranking by size is invariant under unit choice — bytes are good enough to tell you which thing is the biggest, and that's the actionable question.

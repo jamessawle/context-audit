@@ -41,7 +41,7 @@ func Render(w io.Writer, comps []components.Component, totalTokens int) error {
 		return err
 	}
 
-	_, err := fmt.Fprintf(w, "\nHarness recorded %d input tokens for the session-start turn (includes built-in system prompt + tool schemas, not measured here).\n", totalTokens)
+	_, err := fmt.Fprintf(w, "\nHarness recorded %s input tokens for the session-start turn (includes built-in system prompt + tool schemas, not measured here).\n", formatTokens(totalTokens))
 	return err
 }
 
@@ -59,4 +59,22 @@ func formatBytes(n int) string {
 	}
 	// "KMGTPE" — KB, MB, GB, ...
 	return fmt.Sprintf("%.1f %cB", float64(n)/float64(div), "KMGTPE"[exp])
+}
+
+// formatTokens renders a token count with a magnitude suffix, e.g.
+// 66739 → "66.7k", 1234567 → "1.2M". Below 1000 the raw integer is
+// returned. Lowercase k/M/B are used (rather than KB/MB) because the
+// values are counts, not bytes.
+func formatTokens(n int) string {
+	const unit = 1000
+	if n < unit {
+		return fmt.Sprintf("%d", n)
+	}
+	div, exp := int64(unit), 0
+	for v := int64(n) / unit; v >= unit; v /= unit {
+		div *= unit
+		exp++
+	}
+	// "kMBT" — thousands, millions, billions, trillions.
+	return fmt.Sprintf("%.1f%c", float64(n)/float64(div), "kMBT"[exp])
 }

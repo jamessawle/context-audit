@@ -31,8 +31,8 @@ func TestRender_IncludesTokenTotalFooter(t *testing.T) {
 	if err := Render(&buf, nil, 12345); err != nil {
 		t.Fatalf("Render error: %v", err)
 	}
-	if !strings.Contains(buf.String(), "12345") {
-		t.Fatalf("expected token total in footer:\n%s", buf.String())
+	if !strings.Contains(buf.String(), "12.3k") {
+		t.Fatalf("expected magnitude-formatted token total in footer:\n%s", buf.String())
 	}
 }
 
@@ -87,6 +87,26 @@ func TestRender_PreservesStableSortForEqualBytes(t *testing.T) {
 	if !(firstIdx < secondIdx && secondIdx < thirdIdx) {
 		t.Fatalf("expected stable order first<second<third for equal bytes, positions %d/%d/%d in:\n%s",
 			firstIdx, secondIdx, thirdIdx, out)
+	}
+}
+
+func TestFormatTokens(t *testing.T) {
+	cases := []struct {
+		in   int
+		want string
+	}{
+		{0, "0"},
+		{42, "42"},
+		{999, "999"},
+		{1000, "1.0k"},
+		{12345, "12.3k"},
+		{66739, "66.7k"},
+		{1234567, "1.2M"},
+	}
+	for _, c := range cases {
+		if got := formatTokens(c.in); got != c.want {
+			t.Errorf("formatTokens(%d) = %q, want %q", c.in, got, c.want)
+		}
 	}
 }
 

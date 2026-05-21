@@ -1,0 +1,11 @@
+internal/report/report.go
+  ai_agent 44,63-79
+internal/report/report_test.go
+  ai_agent 34-35,93-109
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.10",
+  "base_commit_sha": "c3a50330a2c037199fc44385a19dbe4ced5acf17",
+  "prompts": {}
+}

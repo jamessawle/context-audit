@@ -3,6 +3,7 @@ package probe
 import (
 	"crypto/rand"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 )
@@ -13,7 +14,7 @@ func Run(home, cwd string) (string, error) {
 	sid := newSessionID()
 	cmd := exec.Command("claude", buildClaudeArgs(sid)...)
 	cmd.Dir = cwd
-	cmd.Stdout = os.Stderr // harmless probe chatter ("Goodbye.") goes to stderr
+	cmd.Stdout = io.Discard // suppress claude's JSON result blob; stderr still flows through
 	cmd.Stderr = os.Stderr
 	if err := cmd.Run(); err != nil {
 		return "", fmt.Errorf("claude probe failed: %w", err)

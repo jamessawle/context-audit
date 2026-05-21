@@ -13,7 +13,6 @@ import (
 // MCP server name, hook name, or CLAUDE.md path). Content is the raw
 // text the harness loaded — exactly the bytes we want to attribute.
 // Bytes mirrors len(Content) for convenience in sorting/aggregation.
-// Action is an actionable hint the report can surface to the user.
 //
 // The shape of this struct is part of the contract with the report
 // renderer (Task 6) and downstream tasks — fields must not be renamed.
@@ -22,16 +21,14 @@ type Component struct {
 	Label   string
 	Content string
 	Bytes   int
-	Action  string
 }
 
-func newComponent(kind, label, content, action string) Component {
+func newComponent(kind, label, content string) Component {
 	return Component{
 		Kind:    kind,
 		Label:   label,
 		Content: content,
 		Bytes:   len(content),
-		Action:  action,
 	}
 }
 
@@ -60,14 +57,14 @@ func Build(session *jsonl.Session, claudeMds []ClaudeMdFile) []Component {
 			if body == "" {
 				body = a.Content
 			}
-			out = append(out, newComponent("hook", a.HookName, body, "disable this hook in settings.json"))
+			out = append(out, newComponent("hook", a.HookName, body))
 		case "hook_additional_context":
-			out = append(out, newComponent("hook", a.HookName, a.Content, "disable this hook in settings.json"))
+			out = append(out, newComponent("hook", a.HookName, a.Content))
 		}
 	}
 
 	for _, f := range claudeMds {
-		out = append(out, newComponent("claude_md", f.Path, f.Content, "trim or remove this CLAUDE.md"))
+		out = append(out, newComponent("claude_md", f.Path, f.Content))
 	}
 	return out
 }
@@ -112,7 +109,7 @@ func splitSkillListing(content string) []Component {
 		if idx := strings.Index(body, ": "); idx > 0 {
 			name = strings.TrimSpace(body[:idx])
 		}
-		out = append(out, newComponent("skill", name, line, "disable this skill / its plugin"))
+		out = append(out, newComponent("skill", name, line))
 	}
 	return out
 }
@@ -142,7 +139,7 @@ func groupMcpServers(names []string) []Component {
 
 	var out []Component
 	for _, server := range order {
-		out = append(out, newComponent("mcp_server", server, strings.Join(byServer[server], "\n"), "remove this MCP server"))
+		out = append(out, newComponent("mcp_server", server, strings.Join(byServer[server], "\n")))
 	}
 	return out
 }

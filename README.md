@@ -31,6 +31,8 @@ Run from the directory you want to audit. The tool spawns a single Haiku-backed 
 
 **Cost:** one short Haiku probe call per run (a few cents on your Claude account). No API key needed beyond a working `claude` CLI.
 
-**Output:** a table of `BYTES  COMPONENT  ACTION`, sorted descending. Below the table, a footer reports the harness's recorded input-token total for orientation — this includes the built-in system prompt and built-in tool schemas, which are not broken down per row (they aren't actionable individually).
+**Output:** a table of `BYTES  COMPONENT`, sorted descending. Below the table, a footer reports the harness's recorded input-token total for orientation — this includes the built-in system prompt and built-in tool schemas, which are not broken down per row (they aren't actionable individually).
 
 **Why bytes, not tokens?** Token-accurate per-component sizing would require an API key and an HTTP call per component. Ranking by size is invariant under unit choice — bytes are good enough to tell you which thing is the biggest, and that's the actionable question.
+
+**Limitation:** MCP server tool listings are not currently captured. `claude -p` mode skips MCP server initialisation, so the deferred-tools attachment is never written to the probe's JSONL. Tracked in [#2](https://github.com/jamessawle/context-audit/issues/2) — coming in v0.2.

@@ -10,9 +10,9 @@ import (
 
 func TestRender_SortsBytesDescending(t *testing.T) {
 	comps := []components.Component{
-		{Kind: "skill", Label: "small", Bytes: 10, Action: "disable"},
-		{Kind: "skill", Label: "big", Bytes: 1000, Action: "disable"},
-		{Kind: "hook", Label: "mid", Bytes: 500, Action: "disable hook"},
+		{Kind: "skill", Label: "small", Bytes: 10},
+		{Kind: "skill", Label: "big", Bytes: 1000},
+		{Kind: "hook", Label: "mid", Bytes: 500},
 	}
 	var buf bytes.Buffer
 	if err := Render(&buf, comps, 12345); err != nil {
@@ -44,13 +44,15 @@ func TestRender_HeaderRowPresent(t *testing.T) {
 	out := buf.String()
 	bytesIdx := strings.Index(out, "BYTES")
 	compIdx := strings.Index(out, "COMPONENT")
-	actionIdx := strings.Index(out, "ACTION")
-	if bytesIdx < 0 || compIdx < 0 || actionIdx < 0 {
-		t.Fatalf("expected BYTES, COMPONENT, ACTION header columns in:\n%s", out)
+	if bytesIdx < 0 || compIdx < 0 {
+		t.Fatalf("expected BYTES and COMPONENT header columns in:\n%s", out)
 	}
-	if !(bytesIdx < compIdx && compIdx < actionIdx) {
-		t.Fatalf("expected header order BYTES < COMPONENT < ACTION, got positions %d/%d/%d in:\n%s",
-			bytesIdx, compIdx, actionIdx, out)
+	if !(bytesIdx < compIdx) {
+		t.Fatalf("expected header order BYTES < COMPONENT, got positions %d/%d in:\n%s",
+			bytesIdx, compIdx, out)
+	}
+	if strings.Contains(out, "ACTION") {
+		t.Fatalf("expected no ACTION column, got:\n%s", out)
 	}
 }
 
@@ -70,9 +72,9 @@ func TestRender_EmptyComponents(t *testing.T) {
 
 func TestRender_PreservesStableSortForEqualBytes(t *testing.T) {
 	comps := []components.Component{
-		{Kind: "skill", Label: "first", Bytes: 100, Action: "disable"},
-		{Kind: "skill", Label: "second", Bytes: 100, Action: "disable"},
-		{Kind: "skill", Label: "third", Bytes: 100, Action: "disable"},
+		{Kind: "skill", Label: "first", Bytes: 100},
+		{Kind: "skill", Label: "second", Bytes: 100},
+		{Kind: "skill", Label: "third", Bytes: 100},
 	}
 	var buf bytes.Buffer
 	if err := Render(&buf, comps, 0); err != nil {
@@ -85,5 +87,24 @@ func TestRender_PreservesStableSortForEqualBytes(t *testing.T) {
 	if !(firstIdx < secondIdx && secondIdx < thirdIdx) {
 		t.Fatalf("expected stable order first<second<third for equal bytes, positions %d/%d/%d in:\n%s",
 			firstIdx, secondIdx, thirdIdx, out)
+	}
+}
+
+func TestFormatBytes(t *testing.T) {
+	cases := []struct {
+		in   int
+		want string
+	}{
+		{0, "0 B"},
+		{500, "500 B"},
+		{1024, "1.0 KB"},
+		{1536, "1.5 KB"},
+		{1048576, "1.0 MB"},
+		{5989, "5.8 KB"},
+	}
+	for _, c := range cases {
+		if got := formatBytes(c.in); got != c.want {
+			t.Errorf("formatBytes(%d) = %q, want %q", c.in, got, c.want)
+		}
 	}
 }

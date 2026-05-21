@@ -13,9 +13,10 @@ import (
 	"github.com/jamessawle/context-audit/internal/components"
 )
 
-// Render writes a three-column table (BYTES, COMPONENT, ACTION) to w,
-// sorted by Bytes descending with a stable order preserved for ties.
-// The COMPONENT column is formatted as "<kind>: <label>".
+// Render writes a two-column table (BYTES, COMPONENT) to w, sorted by
+// Bytes descending with a stable order preserved for ties. The BYTES
+// column is rendered as a human-readable size (e.g. "5.8 KB"). The
+// COMPONENT column is formatted as "<kind>: <label>".
 //
 // After the table, Render prints a one-line footer with totalTokens —
 // the sum of input_tokens + cache_creation_input_tokens +
@@ -32,9 +33,9 @@ func Render(w io.Writer, comps []components.Component, totalTokens int) error {
 	})
 
 	tw := tabwriter.NewWriter(w, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(tw, "BYTES\tCOMPONENT\tACTION")
+	fmt.Fprintln(tw, "BYTES\tCOMPONENT")
 	for _, c := range sorted {
-		fmt.Fprintf(tw, "%d\t%s: %s\t%s\n", c.Bytes, c.Kind, c.Label, c.Action)
+		fmt.Fprintf(tw, "%s\t%s: %s\n", formatBytes(c.Bytes), c.Kind, c.Label)
 	}
 	if err := tw.Flush(); err != nil {
 		return err
@@ -42,4 +43,20 @@ func Render(w io.Writer, comps []components.Component, totalTokens int) error {
 
 	_, err := fmt.Fprintf(w, "\nHarness recorded %d input tokens for the session-start turn (includes built-in system prompt + tool schemas, not measured here).\n", totalTokens)
 	return err
+}
+
+// formatBytes returns "5.8 KB", "1.2 MB", "133 B" etc.
+// Uses 1024-based units (KiB/MiB internally, displayed as KB/MB for readability).
+func formatBytes(n int) string {
+	const unit = 1024
+	if n < unit {
+		return fmt.Sprintf("%d B", n)
+	}
+	div, exp := int64(unit), 0
+	for v := int64(n) / unit; v >= unit; v /= unit {
+		div *= unit
+		exp++
+	}
+	// "KMGTPE" — KB, MB, GB, ...
+	return fmt.Sprintf("%.1f %cB", float64(n)/float64(div), "KMGTPE"[exp])
 }

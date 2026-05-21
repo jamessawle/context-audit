@@ -1,0 +1,17 @@
+internal/probe/probe.go
+  ai_agent 6,17
+internal/report/report.go
+  ai_agent 16-19,36,38,47-61
+README.md
+  ai_agent 34,37-38
+internal/components/components.go
+  ai_agent 26,60,62,67,112,142
+internal/report/report_test.go
+  ai_agent 13-15,47-48,50-55,75-77,92-108
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.10",
+  "base_commit_sha": "d1b4a95a5a9c3194039764fa9b5215aa1da40e87",
+  "prompts": {}
+}

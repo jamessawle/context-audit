@@ -1,0 +1,13 @@
+testdata/sample-startup.jsonl
+  ai_agent 1-9
+cmd/context-audit/main.go
+  ai_agent 1-26
+go.mod
+  ai_agent 1-3
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.10",
+  "base_commit_sha": "f6db65b51e2e3fe8d178a9ddb3976dfc3265ba44",
+  "prompts": {}
+}

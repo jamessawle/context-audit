@@ -4,6 +4,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 
 	"github.com/jamessawle/context-audit/internal/components"
@@ -41,6 +42,10 @@ func runStartup() error {
 		return fmt.Errorf("resolve cwd: %w", err)
 	}
 
+	if _, err := exec.LookPath("claude"); err != nil {
+		return fmt.Errorf("claude CLI not found on PATH; install Claude Code (https://claude.com/claude-code) before running context-audit")
+	}
+
 	fmt.Fprintln(os.Stderr, "Spawning probe session (this costs a small amount on your Claude account)...")
 	jsonlPath, err := probe.Run(home, cwd)
 	if err != nil {
@@ -57,13 +62,11 @@ func runStartup() error {
 		return fmt.Errorf("discover CLAUDE.md: %w", err)
 	}
 
-	comps := components.Build(session, claudeMds)
-	totalTokens := session.InputTokens + session.CacheCreationInputTokens + session.CacheReadInputTokens
-	if err := report.Render(os.Stdout, comps, totalTokens); err != nil {
-		return err
-	}
 	for _, w := range session.Warnings {
 		fmt.Fprintf(os.Stderr, "warning: %s\n", w)
 	}
-	return nil
+
+	comps := components.Build(session, claudeMds)
+	totalTokens := session.InputTokens + session.CacheCreationInputTokens + session.CacheReadInputTokens
+	return report.Render(os.Stdout, comps, totalTokens)
 }

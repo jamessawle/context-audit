@@ -1,0 +1,13 @@
+README.md
+  ai_agent 30,32
+internal/probe/probe_test.go
+  ai_agent 8,20-22
+internal/probe/probe.go
+  ai_agent 31-39
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.10",
+  "base_commit_sha": "eab30e9b1f22a2f7782bfe35296b5928826bfec1",
+  "prompts": {}
+}

@@ -1,6 +1,7 @@
 package components
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/jamessawle/context-audit/internal/jsonl"
@@ -142,6 +143,90 @@ func TestBuild_ClaudeMdFiles(t *testing.T) {
 	}
 	if mds[1].Bytes <= mds[0].Bytes {
 		t.Fatalf("expected longer file to have more bytes")
+	}
+}
+
+func TestBuild_SkillListingLabelsHandleColonsInName(t *testing.T) {
+	input := "- pr-management:fix-pr: fix a PR\n- handoff: compact\n- no-desc-line\n"
+	session := &jsonl.Session{
+		Attachments: []jsonl.Attachment{
+			{SubType: "skill_listing", Content: input},
+		},
+	}
+	comps := Build(session, nil)
+
+	var skills []Component
+	for _, c := range comps {
+		if c.Kind == "skill" {
+			skills = append(skills, c)
+		}
+	}
+	if len(skills) != 3 {
+		t.Fatalf("want 3 skills, got %d: %+v", len(skills), skills)
+	}
+	if skills[0].Label != "pr-management:fix-pr" {
+		t.Errorf("skill[0] Label = %q, want %q", skills[0].Label, "pr-management:fix-pr")
+	}
+	if skills[1].Label != "handoff" {
+		t.Errorf("skill[1] Label = %q, want %q", skills[1].Label, "handoff")
+	}
+	if skills[2].Label != "no-desc-line" {
+		t.Errorf("skill[2] Label = %q, want %q", skills[2].Label, "no-desc-line")
+	}
+}
+
+func TestBuild_SkillListingFoldsContinuationLines(t *testing.T) {
+	input := "- foo: desc line 1\n  continuation\nTRIGGER when: x\n- bar: desc\n"
+	session := &jsonl.Session{
+		Attachments: []jsonl.Attachment{
+			{SubType: "skill_listing", Content: input},
+		},
+	}
+	comps := Build(session, nil)
+
+	var skills []Component
+	for _, c := range comps {
+		if c.Kind == "skill" {
+			skills = append(skills, c)
+		}
+	}
+	if len(skills) != 2 {
+		t.Fatalf("want 2 skills (continuation lines folded), got %d: %+v", len(skills), skills)
+	}
+	if skills[0].Label != "foo" || skills[1].Label != "bar" {
+		t.Fatalf("unexpected labels: %+v", skills)
+	}
+	if !strings.Contains(skills[0].Content, "continuation") || !strings.Contains(skills[0].Content, "TRIGGER when") {
+		t.Errorf("expected continuation lines folded into foo Content, got %q", skills[0].Content)
+	}
+	sum := 0
+	for _, s := range skills {
+		sum += s.Bytes
+	}
+	if sum != len(input) {
+		t.Fatalf("sum of skill bytes %d != len(input) %d (bytes invariant broken)", sum, len(input))
+	}
+}
+
+func TestBuild_SkillListingLeadingContinuationDropped(t *testing.T) {
+	input := "stray prefix\n- foo: desc\n"
+	session := &jsonl.Session{
+		Attachments: []jsonl.Attachment{
+			{SubType: "skill_listing", Content: input},
+		},
+	}
+	comps := Build(session, nil)
+	var skills []Component
+	for _, c := range comps {
+		if c.Kind == "skill" {
+			skills = append(skills, c)
+		}
+	}
+	if len(skills) != 1 {
+		t.Fatalf("want 1 skill, got %d: %+v", len(skills), skills)
+	}
+	if skills[0].Label != "foo" {
+		t.Errorf("Label = %q, want foo", skills[0].Label)
 	}
 }
 

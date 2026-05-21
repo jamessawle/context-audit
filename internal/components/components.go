@@ -73,9 +73,16 @@ func Build(session *jsonl.Session, claudeMds []ClaudeMdFile) []Component {
 }
 
 // splitSkillListing parses a skill_listing attachment's markdown content,
-// where each line has the form "- <name>: <description>", into one
-// component per skill. Blank lines are skipped. The full line is preserved
-// as Content so byte attribution reflects what the harness actually loaded.
+// where each skill is introduced by a line of the form
+// "- <name>: <description>". Skill descriptions may wrap onto subsequent
+// lines that do not start with "- "; those continuation lines are folded
+// into the preceding skill's Content so byte attribution stays exact and
+// the sum of skill bytes equals the original input length.
+//
+// The name/description split happens on the first ": " (colon followed by
+// space), not the first bare colon — skill names commonly contain colons
+// (e.g. "pr-management:fix-pr"). If no ": " is found, the whole body is
+// used as the label.
 func splitSkillListing(content string) []Component {
 	var out []Component
 	// SplitAfter keeps each line's trailing "\n" attached, so the per-skill
@@ -83,11 +90,26 @@ func splitSkillListing(content string) []Component {
 	for _, line := range strings.SplitAfter(content, "\n") {
 		trimmed := strings.TrimSpace(line)
 		if trimmed == "" {
+			// Blank line: fold into previous skill if there is one so bytes balance.
+			if len(out) > 0 {
+				last := &out[len(out)-1]
+				last.Content += line
+				last.Bytes = len(last.Content)
+			}
+			continue
+		}
+		if !strings.HasPrefix(trimmed, "- ") {
+			// Continuation line (e.g. "TRIGGER when: ...") — attach to previous skill.
+			if len(out) > 0 {
+				last := &out[len(out)-1]
+				last.Content += line
+				last.Bytes = len(last.Content)
+			}
 			continue
 		}
 		body := strings.TrimPrefix(trimmed, "- ")
 		name := body
-		if idx := strings.Index(body, ":"); idx > 0 {
+		if idx := strings.Index(body, ": "); idx > 0 {
 			name = strings.TrimSpace(body[:idx])
 		}
 		out = append(out, newComponent("skill", name, line, "disable this skill / its plugin"))

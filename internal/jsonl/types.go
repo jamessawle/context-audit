@@ -29,6 +29,8 @@ type Attachment struct {
 // understand.
 type Session struct {
 	CacheCreationInputTokens int
+	CacheReadInputTokens     int
+	InputTokens              int
 	Attachments              []Attachment
 	Warnings                 []string
 }

@@ -58,7 +58,8 @@ func runStartup() error {
 	}
 
 	comps := components.Build(session, claudeMds)
-	if err := report.Render(os.Stdout, comps, session.CacheCreationInputTokens); err != nil {
+	totalTokens := session.InputTokens + session.CacheCreationInputTokens + session.CacheReadInputTokens
+	if err := report.Render(os.Stdout, comps, totalTokens); err != nil {
 		return err
 	}
 	for _, w := range session.Warnings {

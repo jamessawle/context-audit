@@ -22,10 +22,12 @@ import (
 // truncated or malformed line does not discard everything parsed so
 // far.
 //
-// CacheCreationInputTokens is taken from the very first "assistant"
-// line, even if its message.usage.cache_creation_input_tokens is 0. In
-// a --startup probe transcript that is the initial turn and represents
-// the cost of the loaded startup context.
+// The three usage fields — InputTokens, CacheCreationInputTokens, and
+// CacheReadInputTokens — are taken from the very first "assistant" line,
+// even if any of them are 0. In a --startup probe transcript that is the
+// initial turn; their sum represents the harness's reported input-token
+// cost of the loaded startup context (warm-cache runs are dominated by
+// cache_read_input_tokens).
 func ParseFile(path string) (*Session, error) {
 	f, err := os.Open(path)
 	if err != nil {
@@ -58,7 +60,9 @@ func ParseFile(path string) (*Session, error) {
 			var line struct {
 				Message struct {
 					Usage struct {
+						InputTokens              int `json:"input_tokens"`
 						CacheCreationInputTokens int `json:"cache_creation_input_tokens"`
+						CacheReadInputTokens     int `json:"cache_read_input_tokens"`
 					} `json:"usage"`
 				} `json:"message"`
 			}
@@ -68,7 +72,9 @@ func ParseFile(path string) (*Session, error) {
 				continue
 			}
 			if !seenAssistant {
+				session.InputTokens = line.Message.Usage.InputTokens
 				session.CacheCreationInputTokens = line.Message.Usage.CacheCreationInputTokens
+				session.CacheReadInputTokens = line.Message.Usage.CacheReadInputTokens
 				seenAssistant = true
 			}
 		case "attachment":

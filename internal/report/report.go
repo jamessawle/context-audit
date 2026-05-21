@@ -18,10 +18,12 @@ import (
 // The COMPONENT column is formatted as "<kind>: <label>".
 //
 // After the table, Render prints a one-line footer with totalTokens —
-// the harness's cache_creation_input_tokens for the session-start turn.
-// The footer is informational only: it uses a different unit (tokens vs
-// bytes) and includes the unmeasured baseline (built-in system prompt
-// plus tool schemas), so it will not equal the sum of the BYTES column.
+// the sum of input_tokens + cache_creation_input_tokens +
+// cache_read_input_tokens reported by the harness for the session-start
+// turn. The footer is informational only: it uses a different unit
+// (tokens vs bytes) and includes the unmeasured baseline (built-in
+// system prompt plus tool schemas), so it will not equal the sum of the
+// BYTES column.
 func Render(w io.Writer, comps []components.Component, totalTokens int) error {
 	sorted := make([]components.Component, len(comps))
 	copy(sorted, comps)

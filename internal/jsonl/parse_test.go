@@ -168,6 +168,24 @@ func TestParseFile_UnknownContentShapeRecordsWarning(t *testing.T) {
 	}
 }
 
+func TestParseFile_CapturesAllTokenFieldsFromFirstAssistant(t *testing.T) {
+	jsonl := `{"type":"assistant","message":{"usage":{"input_tokens":11,"cache_creation_input_tokens":22,"cache_read_input_tokens":33}}}` + "\n" +
+		`{"type":"assistant","message":{"usage":{"input_tokens":99,"cache_creation_input_tokens":99,"cache_read_input_tokens":99}}}` + "\n"
+	session, err := ParseFile(writeJSONL(t, jsonl))
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+	if session.InputTokens != 11 {
+		t.Errorf("InputTokens = %d, want 11", session.InputTokens)
+	}
+	if session.CacheCreationInputTokens != 22 {
+		t.Errorf("CacheCreationInputTokens = %d, want 22", session.CacheCreationInputTokens)
+	}
+	if session.CacheReadInputTokens != 33 {
+		t.Errorf("CacheReadInputTokens = %d, want 33", session.CacheReadInputTokens)
+	}
+}
+
 func TestParseFile_FirstAssistantTokensUsedEvenIfZero(t *testing.T) {
 	jsonl := `{"type":"assistant","message":{"usage":{"cache_creation_input_tokens":0}}}` + "\n" +
 		`{"type":"assistant","message":{"usage":{"cache_creation_input_tokens":100}}}` + "\n"

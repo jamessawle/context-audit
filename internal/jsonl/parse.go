@@ -2,9 +2,11 @@ package jsonl
 
 import (
 	"bufio"
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"os"
+	"strings"
 )
 
 // ParseFile reads a Claude Code startup JSONL transcript and returns the
@@ -15,9 +17,14 @@ import (
 // all sub-type-specific fields left zero — that's intentional, so new
 // subtypes don't break parsing.
 //
-// CacheCreationInputTokens is taken from the first "assistant" line
-// whose message.usage.cache_creation_input_tokens is non-zero. In a
-// --startup probe transcript that is the initial turn and represents
+// Blank lines are ignored. Lines that fail to decode are recorded as
+// warnings on the returned Session and parsing continues, so a single
+// truncated or malformed line does not discard everything parsed so
+// far.
+//
+// CacheCreationInputTokens is taken from the very first "assistant"
+// line, even if its message.usage.cache_creation_input_tokens is 0. In
+// a --startup probe transcript that is the initial turn and represents
 // the cost of the loaded startup context.
 func ParseFile(path string) (*Session, error) {
 	f, err := os.Open(path)
@@ -30,14 +37,20 @@ func ParseFile(path string) (*Session, error) {
 	scanner := bufio.NewScanner(f)
 	scanner.Buffer(make([]byte, 1024*1024), 16*1024*1024)
 
+	var seenAssistant bool
 	lineNum := 0
 	for scanner.Scan() {
 		lineNum++
+		if len(bytes.TrimSpace(scanner.Bytes())) == 0 {
+			continue
+		}
 		var head struct {
 			Type string `json:"type"`
 		}
 		if err := json.Unmarshal(scanner.Bytes(), &head); err != nil {
-			return nil, fmt.Errorf("line %d: decode head: %w", lineNum, err)
+			session.Warnings = append(session.Warnings,
+				fmt.Sprintf("line %d: decode head: %v", lineNum, err))
+			continue
 		}
 
 		switch head.Type {
@@ -50,15 +63,23 @@ func ParseFile(path string) (*Session, error) {
 				} `json:"message"`
 			}
 			if err := json.Unmarshal(scanner.Bytes(), &line); err != nil {
-				return nil, fmt.Errorf("line %d: decode assistant: %w", lineNum, err)
+				session.Warnings = append(session.Warnings,
+					fmt.Sprintf("line %d: decode assistant: %v", lineNum, err))
+				continue
 			}
-			if session.CacheCreationInputTokens == 0 {
+			if !seenAssistant {
 				session.CacheCreationInputTokens = line.Message.Usage.CacheCreationInputTokens
+				seenAssistant = true
 			}
 		case "attachment":
-			a, err := parseAttachment(scanner.Bytes())
+			a, warning, err := parseAttachment(scanner.Bytes(), lineNum)
 			if err != nil {
-				return nil, fmt.Errorf("line %d: %w", lineNum, err)
+				session.Warnings = append(session.Warnings,
+					fmt.Sprintf("line %d: %v", lineNum, err))
+				continue
+			}
+			if warning != "" {
+				session.Warnings = append(session.Warnings, warning)
 			}
 			session.Attachments = append(session.Attachments, a)
 		}
@@ -77,7 +98,10 @@ func ParseFile(path string) (*Session, error) {
 // from siblings inside the attachment object. Unknown subtypes are
 // returned with empty sub-type-specific fields rather than producing an
 // error — see the package doc for Attachment.
-func parseAttachment(raw []byte) (Attachment, error) {
+//
+// If decodeContent encounters an unknown content shape, the returned
+// warning is non-empty (and content holds the raw JSON for inspection).
+func parseAttachment(raw []byte, lineNum int) (Attachment, string, error) {
 	var line struct {
 		Attachment struct {
 			Type       string          `json:"type"`
@@ -88,11 +112,13 @@ func parseAttachment(raw []byte) (Attachment, error) {
 		} `json:"attachment"`
 	}
 	if err := json.Unmarshal(raw, &line); err != nil {
-		return Attachment{}, fmt.Errorf("decode attachment: %w", err)
+		return Attachment{}, "", fmt.Errorf("decode attachment: %w", err)
 	}
-	content, err := decodeContent(line.Attachment.Content)
-	if err != nil {
-		return Attachment{}, fmt.Errorf("decode attachment %q content: %w", line.Attachment.Type, err)
+	content, unknownShape := decodeContent(line.Attachment.Content)
+	var warning string
+	if unknownShape {
+		warning = fmt.Sprintf("line %d: attachment %q has unknown content shape: %s",
+			lineNum, line.Attachment.Type, string(line.Attachment.Content))
 	}
 	return Attachment{
 		SubType:  line.Attachment.Type,
@@ -100,7 +126,7 @@ func parseAttachment(raw []byte) (Attachment, error) {
 		Content:  content,
 		Stdout:   line.Attachment.Stdout,
 		Added:    line.Attachment.AddedNames,
-	}, nil
+	}, warning, nil
 }
 
 // decodeContent normalises the attachment.content field, which appears
@@ -109,26 +135,20 @@ func parseAttachment(raw []byte) (Attachment, error) {
 //   - an array of strings concatenated as a single payload
 //     (hook_additional_context)
 //
-// An empty / missing field returns "". Anything else is preserved as
-// raw JSON text so callers can still inspect unknown shapes.
-func decodeContent(raw json.RawMessage) (string, error) {
-	if len(raw) == 0 || string(raw) == "null" {
-		return "", nil
+// An empty / missing field returns "" with unknownShape=false. Anything
+// else is preserved as raw JSON text and unknownShape=true so callers
+// can record a warning about schema drift.
+func decodeContent(raw json.RawMessage) (content string, unknownShape bool) {
+	if len(raw) == 0 || bytes.Equal(raw, []byte("null")) {
+		return "", false
 	}
 	var s string
 	if err := json.Unmarshal(raw, &s); err == nil {
-		return s, nil
+		return s, false
 	}
 	var arr []string
 	if err := json.Unmarshal(raw, &arr); err == nil {
-		out := ""
-		for i, p := range arr {
-			if i > 0 {
-				out += "\n"
-			}
-			out += p
-		}
-		return out, nil
+		return strings.Join(arr, "\n"), false
 	}
-	return string(raw), nil
+	return string(raw), true
 }

@@ -21,7 +21,14 @@ type Attachment struct {
 // Session is the subset of a startup JSONL we care about in v0.1:
 // the first assistant turn's cache_creation_input_tokens (a proxy for
 // total startup context size) and every attachment line in order.
+//
+// Warnings records non-fatal parse issues (malformed lines, unknown
+// content shapes) so callers can surface schema drift without the
+// parser aborting. A non-empty Warnings slice is the observable signal
+// that the transcript contained something the parser did not fully
+// understand.
 type Session struct {
 	CacheCreationInputTokens int
 	Attachments              []Attachment
+	Warnings                 []string
 }

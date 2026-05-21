@@ -78,15 +78,17 @@ func Build(session *jsonl.Session, claudeMds []ClaudeMdFile) []Component {
 // as Content so byte attribution reflects what the harness actually loaded.
 func splitSkillListing(content string) []Component {
 	var out []Component
-	for _, line := range strings.Split(content, "\n") {
-		line = strings.TrimSpace(line)
-		if line == "" {
+	// SplitAfter keeps each line's trailing "\n" attached, so the per-skill
+	// Content (and hence Bytes) reflects the original source bytes.
+	for _, line := range strings.SplitAfter(content, "\n") {
+		trimmed := strings.TrimSpace(line)
+		if trimmed == "" {
 			continue
 		}
-		trimmed := strings.TrimPrefix(line, "- ")
-		name := trimmed
-		if idx := strings.Index(trimmed, ":"); idx > 0 {
-			name = strings.TrimSpace(trimmed[:idx])
+		body := strings.TrimPrefix(trimmed, "- ")
+		name := body
+		if idx := strings.Index(body, ":"); idx > 0 {
+			name = strings.TrimSpace(body[:idx])
 		}
 		out = append(out, newComponent("skill", name, line, "disable this skill / its plugin"))
 	}

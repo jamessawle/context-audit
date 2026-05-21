@@ -7,11 +7,12 @@ import (
 )
 
 func TestBuild_SplitsSkillListingPerLineWithBytes(t *testing.T) {
+	input := "- foo: does foo\n- bar: does bar\n"
 	session := &jsonl.Session{
 		Attachments: []jsonl.Attachment{
 			{
 				SubType: "skill_listing",
-				Content: "- foo: does foo\n- bar: does bar\n",
+				Content: input,
 			},
 		},
 	}
@@ -29,8 +30,43 @@ func TestBuild_SplitsSkillListingPerLineWithBytes(t *testing.T) {
 	if skills[0].Label != "foo" || skills[1].Label != "bar" {
 		t.Fatalf("unexpected labels: %+v", skills)
 	}
+	if skills[0].Content != "- foo: does foo\n" {
+		t.Fatalf("expected trailing newline preserved in Content, got %q", skills[0].Content)
+	}
 	if skills[0].Bytes != len(skills[0].Content) || skills[0].Bytes == 0 {
 		t.Fatalf("bytes not populated: %+v", skills[0])
+	}
+	sum := 0
+	for _, s := range skills {
+		sum += s.Bytes
+	}
+	if sum != len(input) {
+		t.Fatalf("sum of skill bytes %d != len(input) %d", sum, len(input))
+	}
+}
+
+func TestBuild_SkillListingBytesSumApproximatesInput(t *testing.T) {
+	input := "- alpha: first\n- beta: second\n- gamma: third\n"
+	session := &jsonl.Session{
+		Attachments: []jsonl.Attachment{
+			{SubType: "skill_listing", Content: input},
+		},
+	}
+	comps := Build(session, nil)
+
+	sum := 0
+	count := 0
+	for _, c := range comps {
+		if c.Kind == "skill" {
+			sum += c.Bytes
+			count++
+		}
+	}
+	if count != 3 {
+		t.Fatalf("want 3 skills, got %d", count)
+	}
+	if sum != len(input) {
+		t.Fatalf("sum of skill bytes %d != len(input) %d", sum, len(input))
 	}
 }
 

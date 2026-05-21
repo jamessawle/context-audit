@@ -1,0 +1,11 @@
+internal/probe/path_test.go
+  ai_agent 1-37
+internal/probe/path.go
+  ai_agent 1-14
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.10",
+  "base_commit_sha": "c417de22282f39e32f7c4eea2a977b22a050d0ee",
+  "prompts": {}
+}

@@ -1,0 +1,13 @@
+internal/report/report_test.go
+  ai_agent 130-135
+internal/report/report.go
+  ai_agent 25-29,31-32,59,61-64
+cmd/context-audit/main.go
+  ai_agent 49,54
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.10",
+  "base_commit_sha": "d6a6097a516f1d541aa1d9713e63beb9f78f2321",
+  "prompts": {}
+}

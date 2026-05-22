@@ -13,18 +13,24 @@ import (
 	"github.com/jamessawle/context-audit/internal/components"
 )
 
-// Render writes a two-column table (BYTES, COMPONENT) to w, sorted by
-// Bytes descending with a stable order preserved for ties. The BYTES
-// column is rendered as a human-readable size (e.g. "5.8 KB"). The
-// COMPONENT column is formatted as "<kind>: <label>".
+// Render writes a four-column table (TOKENS (≈), BYTES, PLUGIN, COMPONENT)
+// to w, sorted by Bytes descending with a stable order preserved for ties.
+// TOKENS is a heuristic estimate from byte length (4 chars/token), useful
+// for ranking but not for exact comparison with /context. BYTES is the raw
+// loaded byte count. PLUGIN is the plugin source (e.g. "pr-management",
+// "built-in", "mcp_server"); empty for hooks and claude_md. COMPONENT is
+// formatted as "<kind>: <label>".
 //
-// After the table, Render prints a one-line footer with totalTokens —
-// the sum of input_tokens + cache_creation_input_tokens +
-// cache_read_input_tokens reported by the harness for the session-start
-// turn. The footer is informational only: it uses a different unit
-// (tokens vs bytes) and includes the unmeasured baseline (built-in
-// system prompt plus tool schemas), so it will not equal the sum of the
-// BYTES column.
+// After the table, Render prints a footer with totalTokens — the sum of
+// input_tokens + cache_creation_input_tokens + cache_read_input_tokens
+// reported by the harness for the session-start turn. That total is exact
+// (harness-supplied) and includes the unmeasured baseline (built-in system
+// prompt plus tool schemas), so it will not equal the sum of the TOKENS
+// (≈) column.
+//
+// If any of the supplied components is an MCP server with zero Bytes
+// (configured but loaded on-demand, surfaced via `claude mcp list`), a
+// note is appended to the footer naming how many were detected.
 func Render(w io.Writer, comps []components.Component, totalTokens int) error {
 	sorted := make([]components.Component, len(comps))
 	copy(sorted, comps)
@@ -33,16 +39,41 @@ func Render(w io.Writer, comps []components.Component, totalTokens int) error {
 	})
 
 	tw := tabwriter.NewWriter(w, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(tw, "BYTES\tCOMPONENT")
+	fmt.Fprintln(tw, "TOKENS (≈)\tBYTES\tPLUGIN\tCOMPONENT")
+	mcpCount := 0
 	for _, c := range sorted {
-		fmt.Fprintf(tw, "%s\t%s: %s\n", formatBytes(c.Bytes), c.Kind, c.Label)
+		if c.Kind == "mcp_server" && c.Bytes == 0 {
+			mcpCount++
+		}
+		fmt.Fprintf(tw, "%s\t%s\t%s\t%s: %s\n",
+			formatTokens(estimateTokens(c.Bytes)),
+			formatBytes(c.Bytes),
+			c.Plugin,
+			c.Kind, c.Label,
+		)
 	}
 	if err := tw.Flush(); err != nil {
 		return err
 	}
 
-	_, err := fmt.Fprintf(w, "\nHarness recorded %s input tokens for the session-start turn (includes built-in system prompt + tool schemas, not measured here).\n", formatTokens(totalTokens))
-	return err
+	if _, err := fmt.Fprintf(w, "\nHarness recorded %s input tokens for the session-start turn (includes built-in system prompt + tool schemas, not measured here).\n", formatTokens(totalTokens)); err != nil {
+		return err
+	}
+	if mcpCount > 0 {
+		if _, err := fmt.Fprintf(w, "Note: %d MCP server(s) configured but loaded on-demand (size shown as zero).\n", mcpCount); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// estimateTokens approximates the token count from byte length.
+// Uses a fixed 4 chars/token heuristic. Accurate to within ~30% for
+// English/code; suitable for ranking but not for exact comparison with
+// /context. The footer total comes from the harness's own count and is
+// exact.
+func estimateTokens(bytes int) int {
+	return (bytes + 2) / 4 // round to nearest
 }
 
 // formatBytes returns "5.8 KB", "1.2 MB", "133 B" etc.

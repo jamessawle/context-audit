@@ -42,17 +42,86 @@ func TestRender_HeaderRowPresent(t *testing.T) {
 		t.Fatalf("Render error: %v", err)
 	}
 	out := buf.String()
+	tokensIdx := strings.Index(out, "TOKENS")
 	bytesIdx := strings.Index(out, "BYTES")
+	pluginIdx := strings.Index(out, "PLUGIN")
 	compIdx := strings.Index(out, "COMPONENT")
-	if bytesIdx < 0 || compIdx < 0 {
-		t.Fatalf("expected BYTES and COMPONENT header columns in:\n%s", out)
+	if tokensIdx < 0 || bytesIdx < 0 || pluginIdx < 0 || compIdx < 0 {
+		t.Fatalf("expected TOKENS, BYTES, PLUGIN, COMPONENT header columns in:\n%s", out)
 	}
-	if !(bytesIdx < compIdx) {
-		t.Fatalf("expected header order BYTES < COMPONENT, got positions %d/%d in:\n%s",
-			bytesIdx, compIdx, out)
+	if !(tokensIdx < bytesIdx && bytesIdx < pluginIdx && pluginIdx < compIdx) {
+		t.Fatalf("expected header order TOKENS < BYTES < PLUGIN < COMPONENT, got positions %d/%d/%d/%d in:\n%s",
+			tokensIdx, bytesIdx, pluginIdx, compIdx, out)
 	}
 	if strings.Contains(out, "ACTION") {
 		t.Fatalf("expected no ACTION column, got:\n%s", out)
+	}
+}
+
+func TestRender_PluginColumnPopulated(t *testing.T) {
+	comps := []components.Component{
+		{Kind: "skill", Label: "fix-pr", Plugin: "pr-management", Bytes: 200},
+		{Kind: "hook", Label: "SessionStart", Plugin: "", Bytes: 5000},
+	}
+	var buf bytes.Buffer
+	if err := Render(&buf, comps, 0); err != nil {
+		t.Fatalf("Render error: %v", err)
+	}
+	out := buf.String()
+	lines := strings.Split(out, "\n")
+	var hookLine, skillLine string
+	for _, l := range lines {
+		if strings.Contains(l, "hook: SessionStart") {
+			hookLine = l
+		}
+		if strings.Contains(l, "skill: fix-pr") {
+			skillLine = l
+		}
+	}
+	if hookLine == "" || skillLine == "" {
+		t.Fatalf("missing expected rows in:\n%s", out)
+	}
+	if !strings.Contains(skillLine, "pr-management") {
+		t.Errorf("expected pr-management in skill row, got: %q", skillLine)
+	}
+	// hook row should not contain a plugin name
+	if strings.Contains(hookLine, "pr-management") || strings.Contains(hookLine, "built-in") {
+		t.Errorf("expected empty plugin column for hook, got: %q", hookLine)
+	}
+}
+
+func TestEstimateTokens(t *testing.T) {
+	// NOTE: the formula `(bytes + 2) / 4` rounds toward nearest with
+	// integer truncation. The spec listed {5→2, 100→26} which the
+	// formula cannot produce; those expected values are inconsistent
+	// with the formula. We assert what the formula actually produces.
+	cases := []struct {
+		in, want int
+	}{
+		{0, 0},
+		{4, 1},
+		{5, 1},
+		{100, 25},
+		{1024, 256},
+	}
+	for _, c := range cases {
+		if got := estimateTokens(c.in); got != c.want {
+			t.Errorf("estimateTokens(%d) = %d, want %d", c.in, got, c.want)
+		}
+	}
+}
+
+func TestRender_MCPServerFooterNote(t *testing.T) {
+	comps := []components.Component{
+		{Kind: "mcp_server", Label: "slack", Plugin: "mcp_server", Bytes: 0},
+		{Kind: "mcp_server", Label: "gmail", Plugin: "mcp_server", Bytes: 0},
+	}
+	var buf bytes.Buffer
+	if err := Render(&buf, comps, 1000); err != nil {
+		t.Fatalf("Render error: %v", err)
+	}
+	if !strings.Contains(buf.String(), "2 MCP server(s) configured") {
+		t.Fatalf("expected MCP footer note in:\n%s", buf.String())
 	}
 }
 

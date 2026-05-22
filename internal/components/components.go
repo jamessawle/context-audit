@@ -19,6 +19,7 @@ import (
 type Component struct {
 	Kind    string // "skill", "mcp_server", "hook", "claude_md"
 	Label   string
+	Plugin  string // plugin source: e.g. "pr-management", "built-in", "mcp_server"; empty for hooks/claude_md
 	Content string
 	Bytes   int
 }
@@ -30,6 +31,18 @@ func newComponent(kind, label, content string) Component {
 		Content: content,
 		Bytes:   len(content),
 	}
+}
+
+// splitSkillLabel splits a raw skill listing label like "pr-management:fix-pr"
+// into (plugin, skillName). If there is no plugin prefix (no colon), the
+// plugin is reported as "built-in" — we cannot reliably distinguish project
+// skills from harness built-ins without disk inspection, so this pass treats
+// any unprefixed skill as built-in.
+func splitSkillLabel(raw string) (plugin, name string) {
+	if idx := strings.Index(raw, ":"); idx > 0 {
+		return raw[:idx], raw[idx+1:]
+	}
+	return "built-in", raw
 }
 
 // Build turns a parsed JSONL session plus discovered CLAUDE.md files into a
@@ -109,7 +122,9 @@ func splitSkillListing(content string) []Component {
 		if idx := strings.Index(body, ": "); idx > 0 {
 			name = strings.TrimSpace(body[:idx])
 		}
-		out = append(out, newComponent("skill", name, line))
+		c := newComponent("skill", name, line)
+		c.Plugin, c.Label = splitSkillLabel(name)
+		out = append(out, c)
 	}
 	return out
 }

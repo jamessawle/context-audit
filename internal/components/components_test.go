@@ -164,14 +164,47 @@ func TestBuild_SkillListingLabelsHandleColonsInName(t *testing.T) {
 	if len(skills) != 3 {
 		t.Fatalf("want 3 skills, got %d: %+v", len(skills), skills)
 	}
-	if skills[0].Label != "pr-management:fix-pr" {
-		t.Errorf("skill[0] Label = %q, want %q", skills[0].Label, "pr-management:fix-pr")
+	if skills[0].Plugin != "pr-management" || skills[0].Label != "fix-pr" {
+		t.Errorf("skill[0] = (%q, %q), want (pr-management, fix-pr)", skills[0].Plugin, skills[0].Label)
 	}
-	if skills[1].Label != "handoff" {
-		t.Errorf("skill[1] Label = %q, want %q", skills[1].Label, "handoff")
+	if skills[1].Plugin != "built-in" || skills[1].Label != "handoff" {
+		t.Errorf("skill[1] = (%q, %q), want (built-in, handoff)", skills[1].Plugin, skills[1].Label)
 	}
-	if skills[2].Label != "no-desc-line" {
-		t.Errorf("skill[2] Label = %q, want %q", skills[2].Label, "no-desc-line")
+	if skills[2].Plugin != "built-in" || skills[2].Label != "no-desc-line" {
+		t.Errorf("skill[2] = (%q, %q), want (built-in, no-desc-line)", skills[2].Plugin, skills[2].Label)
+	}
+}
+
+func TestBuild_SkillPluginExtraction(t *testing.T) {
+	input := "- pr-management:fix-pr: fix\n- superpowers:writing-plans: plan\n- slack:standup: stand\n- init: init\n- handoff: handoff\n"
+	session := &jsonl.Session{
+		Attachments: []jsonl.Attachment{
+			{SubType: "skill_listing", Content: input},
+		},
+	}
+	comps := Build(session, nil)
+	var skills []Component
+	for _, c := range comps {
+		if c.Kind == "skill" {
+			skills = append(skills, c)
+		}
+	}
+	cases := []struct {
+		plugin, label string
+	}{
+		{"pr-management", "fix-pr"},
+		{"superpowers", "writing-plans"},
+		{"slack", "standup"},
+		{"built-in", "init"},
+		{"built-in", "handoff"},
+	}
+	if len(skills) != len(cases) {
+		t.Fatalf("want %d skills, got %d: %+v", len(cases), len(skills), skills)
+	}
+	for i, want := range cases {
+		if skills[i].Plugin != want.plugin || skills[i].Label != want.label {
+			t.Errorf("skill[%d] = (%q, %q), want (%q, %q)", i, skills[i].Plugin, skills[i].Label, want.plugin, want.label)
+		}
 	}
 }
 

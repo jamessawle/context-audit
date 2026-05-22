@@ -67,6 +67,16 @@ func runStartup() error {
 	}
 
 	comps := components.Build(session, claudeMds)
+	if servers, err := probe.ListMCPServers(); err == nil {
+		for _, name := range servers {
+			comps = append(comps, components.Component{
+				Kind:   "mcp_server",
+				Label:  name,
+				Plugin: "mcp_server", // distinguishes from skills; also signals zero-bytes row
+				// Bytes & estimated tokens stay 0 — schemas aren't loaded at startup.
+			})
+		}
+	}
 	totalTokens := session.InputTokens + session.CacheCreationInputTokens + session.CacheReadInputTokens
 	return report.Render(os.Stdout, comps, totalTokens)
 }

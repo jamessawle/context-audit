@@ -46,11 +46,12 @@ func runStartup() error {
 		return fmt.Errorf("claude CLI not found on PATH; install Claude Code (https://claude.com/claude-code) before running context-audit")
 	}
 
-	fmt.Fprintln(os.Stderr, "Spawning probe session (this costs a small amount on your Claude account)...")
+	fmt.Fprintln(os.Stderr, "Probing harness context — spawning a short Claude session (~10s, costs a few cents)...")
 	jsonlPath, err := probe.Run(home, cwd)
 	if err != nil {
 		return err
 	}
+	fmt.Fprintln(os.Stderr) // blank line between status output and the table
 
 	session, err := jsonl.ParseFile(jsonlPath)
 	if err != nil {

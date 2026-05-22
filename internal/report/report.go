@@ -22,16 +22,14 @@ import (
 // "pr-management", "built-in"); empty for hooks, claude_md, and MCP servers.
 // COMPONENT is the label.
 //
-// After the table, Render prints a footer with totalTokens — the sum of
-// input_tokens + cache_creation_input_tokens + cache_read_input_tokens
-// reported by the harness for the session-start turn. That total is exact
-// (harness-supplied) and includes the unmeasured baseline (built-in system
-// prompt plus tool schemas), so it will not equal the sum of the TOKENS
-// (≈) column.
+// After the table, Render prints a one-line footer: the harness-supplied
+// totalTokens (sum of input_tokens + cache_creation_input_tokens +
+// cache_read_input_tokens for the session-start turn) and, if any MCP
+// servers were detected with zero Bytes (configured but loaded on-demand,
+// surfaced via `claude mcp list`), a "· N MCP on-demand" suffix.
 //
-// If any of the supplied components is an MCP server with zero Bytes
-// (configured but loaded on-demand, surfaced via `claude mcp list`), a
-// note is appended to the footer naming how many were detected.
+// The total includes the unmeasured baseline (built-in system prompt plus
+// tool schemas) so it will not equal the sum of the TOKENS (≈) column.
 func Render(w io.Writer, comps []components.Component, totalTokens int) error {
 	sorted := make([]components.Component, len(comps))
 	copy(sorted, comps)
@@ -58,13 +56,12 @@ func Render(w io.Writer, comps []components.Component, totalTokens int) error {
 		return err
 	}
 
-	if _, err := fmt.Fprintf(w, "\nHarness recorded %s input tokens for the session-start turn (includes built-in system prompt + tool schemas, not measured here).\n", formatTokens(totalTokens)); err != nil {
-		return err
-	}
+	footer := fmt.Sprintf("Total: %s tokens", formatTokens(totalTokens))
 	if mcpCount > 0 {
-		if _, err := fmt.Fprintf(w, "Note: %d MCP server(s) configured but loaded on-demand (size shown as zero).\n", mcpCount); err != nil {
-			return err
-		}
+		footer += fmt.Sprintf(" · %d MCP on-demand", mcpCount)
+	}
+	if _, err := fmt.Fprintf(w, "\n%s\n", footer); err != nil {
+		return err
 	}
 	return nil
 }

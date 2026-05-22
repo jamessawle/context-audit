@@ -127,8 +127,12 @@ func TestRender_MCPServerFooterNote(t *testing.T) {
 	if err := Render(&buf, comps, 1000); err != nil {
 		t.Fatalf("Render error: %v", err)
 	}
-	if !strings.Contains(buf.String(), "2 MCP server(s) configured") {
-		t.Fatalf("expected MCP footer note in:\n%s", buf.String())
+	out := buf.String()
+	if !strings.Contains(out, "2 MCP on-demand") {
+		t.Fatalf("expected MCP suffix in footer, got:\n%s", out)
+	}
+	if !strings.Contains(out, "Total:") {
+		t.Fatalf("expected Total: prefix in footer, got:\n%s", out)
 	}
 }
 

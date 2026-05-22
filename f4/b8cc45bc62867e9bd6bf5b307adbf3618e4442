@@ -1,0 +1,15 @@
+README.md
+  ai_agent 7-9,11-13,16-21
+cmd/context-audit/main.go
+  ai_agent 19-23,26,29-32,34
+CHANGELOG.md
+  ai_agent 1-34
+docs/adr/0001-session-jsonl-as-input.md
+  ai_agent 12,14,19,21
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.10",
+  "base_commit_sha": "f4b8cc45bc62867e9bd6bf5b307adbf3618e4442",
+  "prompts": {}
+}

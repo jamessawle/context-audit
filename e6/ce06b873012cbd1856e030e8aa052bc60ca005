@@ -1,0 +1,23 @@
+internal/report/report.go
+  ai_agent 16-22,24-33,42-43,45-53,59-76
+internal/components/components.go
+  ai_agent 22,36-47,125-127
+cmd/context-audit/main.go
+  ai_agent 70-79
+internal/probe/mcp_test.go
+  ai_agent 1-33
+internal/probe/mcp.go
+  ai_agent 1-55
+README.md
+  ai_agent 34,36
+internal/components/components_test.go
+  ai_agent 167-168,170-171,173-207
+internal/report/report_test.go
+  ai_agent 45,47,49-50,52-54,61-124
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.10",
+  "base_commit_sha": "e6ce06b873012cbd1856e030e8aa052bc60ca005",
+  "prompts": {}
+}

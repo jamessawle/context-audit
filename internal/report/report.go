@@ -8,7 +8,9 @@ import (
 	"fmt"
 	"io"
 	"sort"
-	"text/tabwriter"
+
+	"github.com/charmbracelet/lipgloss"
+	"github.com/charmbracelet/lipgloss/table"
 
 	"github.com/jamessawle/context-audit/internal/components"
 )
@@ -37,22 +39,31 @@ func Render(w io.Writer, comps []components.Component, totalTokens int) error {
 		return sorted[i].Bytes > sorted[j].Bytes
 	})
 
-	tw := tabwriter.NewWriter(w, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(tw, "TOKENS (≈)\tBYTES\tTYPE\tPLUGIN\tCOMPONENT")
 	mcpCount := 0
+	rows := make([][]string, 0, len(sorted))
 	for _, c := range sorted {
 		if c.Kind == "mcp_server" && c.Bytes == 0 {
 			mcpCount++
 		}
-		fmt.Fprintf(tw, "%s\t%s\t%s\t%s\t%s\n",
+		rows = append(rows, []string{
 			formatTokens(estimateTokens(c.Bytes)),
 			formatBytes(c.Bytes),
 			c.Kind,
 			c.Plugin,
 			c.Label,
-		)
+		})
 	}
-	if err := tw.Flush(); err != nil {
+
+	t := table.New().
+		Border(lipgloss.NormalBorder()).
+		BorderStyle(lipgloss.NewStyle().Foreground(lipgloss.Color("240"))).
+		Headers("TOKENS (≈)", "BYTES", "TYPE", "PLUGIN", "COMPONENT").
+		Rows(rows...).
+		StyleFunc(func(row, col int) lipgloss.Style {
+			// Padding on both sides of every cell, including the header row.
+			return lipgloss.NewStyle().Padding(0, 1)
+		})
+	if _, err := fmt.Fprintln(w, t); err != nil {
 		return err
 	}
 
@@ -60,7 +71,7 @@ func Render(w io.Writer, comps []components.Component, totalTokens int) error {
 	if mcpCount > 0 {
 		footer += fmt.Sprintf(" · %d MCP on-demand", mcpCount)
 	}
-	if _, err := fmt.Fprintf(w, "\n%s\n", footer); err != nil {
+	if _, err := fmt.Fprintf(w, "%s\n", footer); err != nil {
 		return err
 	}
 	return nil

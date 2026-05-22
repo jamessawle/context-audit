@@ -7,10 +7,13 @@ import (
 	"os/exec"
 	"path/filepath"
 
+	"github.com/mattn/go-isatty"
+
 	"github.com/jamessawle/context-audit/internal/components"
 	"github.com/jamessawle/context-audit/internal/jsonl"
 	"github.com/jamessawle/context-audit/internal/probe"
 	"github.com/jamessawle/context-audit/internal/report"
+	"github.com/jamessawle/context-audit/internal/tui"
 )
 
 func main() {
@@ -76,5 +79,12 @@ func runStartup() error {
 		comps = components.DedupMCPServers(comps, servers)
 	}
 	totalTokens := session.InputTokens + session.CacheCreationInputTokens + session.CacheReadInputTokens
+
+	// If stdout is a real terminal, launch the interactive TUI. When the
+	// caller pipes output (e.g. `context-audit --startup > out.txt` or
+	// `| less`), fall back to the static report so scripts still work.
+	if isatty.IsTerminal(os.Stdout.Fd()) {
+		return tui.Run(comps, totalTokens)
+	}
 	return report.Render(os.Stdout, comps, totalTokens)
 }

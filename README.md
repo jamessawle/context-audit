@@ -33,4 +33,21 @@ Run from the directory you want to audit. The tool spawns a single Claude sessio
 
 **Output:** a five-column table — `TOKENS (≈)  BYTES  TYPE  PLUGIN  COMPONENT` — sorted by bytes descending. The TOKENS column is a heuristic estimate (4 chars/token); use it for ranking, not exact comparison with `/context`. The TYPE column classifies each row as `skill`, `hook`, `mcp_server`, or `claude_md`. The PLUGIN column groups skills by their source (`pr-management`, `superpowers`, `built-in`, …) so you can see at a glance which plugin is eating context; hooks, `CLAUDE.md`, and MCP server rows leave it blank. The COMPONENT column is the component's name. Below the table, a footer reports the harness's recorded input-token total for orientation — this includes the built-in system prompt and built-in tool schemas, which are not broken down per row (they aren't actionable individually).
 
+## Interactive use
+
+When `context-audit --startup` is run in a real terminal, it opens an interactive TUI with a sortable table on top and a preview pane underneath showing the loaded content of the highlighted component. Useful for "why is this hook so big?" without having to grep through JSONL by hand.
+
+Key bindings:
+
+- `↑` / `k`, `↓` / `j` — move selection
+- `PgUp` / `PgDn` — scroll the preview pane when the content overflows
+- `b` — sort by bytes (default)
+- `t` — sort by tokens (same order as bytes; the estimate is byte-derived)
+- `n` — sort alphabetically by component name
+- `/` — enter filter mode; type a substring (matched case-insensitively against type/plugin/component) to live-filter the table. `Enter` commits, `Esc` exits filter mode without clearing
+- `Esc` (outside filter mode) — clear the active filter
+- `q` / `Ctrl+C` — quit
+
+When stdout is piped or redirected (`context-audit --startup > out.txt`, `| less`, etc.) the tool falls back to the static table so scripts and pagers still work.
+
 **Limitation:** MCP server tool *schemas* are not captured at startup. `claude -p` mode skips MCP server initialisation, so the deferred-tools attachment is never written to the probe's JSONL. As a partial mitigation, configured MCP servers are enumerated via `claude mcp list` and listed as zero-sized rows so you can see what's wired up — full per-server schema sizes are tracked in [#2](https://github.com/jamessawle/context-audit/issues/2).

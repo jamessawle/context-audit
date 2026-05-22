@@ -1,0 +1,19 @@
+internal/components/components.go
+  ai_agent 132-175
+README.md
+  ai_agent 34
+cmd/context-audit/main.go
+  ai_agent 71-75
+internal/report/report.go
+  ai_agent 16-23,43,49,52,54
+internal/components/components_test.go
+  ai_agent 266-318
+internal/report/report_test.go
+  ai_agent 47,50-51,53-55,75,78,85-87,91-93,123-124
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.10",
+  "base_commit_sha": "26cbe5b3e2a4102d7306e6fae4e38814b5b3d879",
+  "prompts": {}
+}

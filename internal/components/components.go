@@ -12,24 +12,37 @@ import (
 // "claude_md"). Label is a short human-readable identifier (skill name,
 // MCP server name, hook name, or CLAUDE.md path). Content is the raw
 // text the harness loaded — exactly the bytes we want to attribute.
-// Bytes mirrors len(Content) for convenience in sorting/aggregation.
+// Bytes mirrors len(Content) and Tokens is its estimated token count
+// (see EstimateTokens). Both are populated once at build time so renderers
+// don't have to re-derive them.
 //
 // The shape of this struct is part of the contract with the report
-// renderer (Task 6) and downstream tasks — fields must not be renamed.
+// renderer and the TUI — fields must not be renamed.
 type Component struct {
 	Kind    string // "skill", "mcp_server", "hook", "claude_md"
 	Label   string
 	Plugin  string // plugin source: e.g. "pr-management", "built-in", "mcp_server"; empty for hooks/claude_md
 	Content string
 	Bytes   int
+	Tokens  int // estimated token count derived from Bytes (see EstimateTokens)
+}
+
+// EstimateTokens approximates a token count from a byte length. Uses a
+// fixed 4-chars-per-token heuristic, accurate to within ~30% for English
+// and code. Suitable for ranking and rough comparison, not for
+// reconciling against the harness-supplied total token figure.
+func EstimateTokens(bytes int) int {
+	return (bytes + 2) / 4 // round to nearest
 }
 
 func newComponent(kind, label, content string) Component {
+	bytes := len(content)
 	return Component{
 		Kind:    kind,
 		Label:   label,
 		Content: content,
-		Bytes:   len(content),
+		Bytes:   bytes,
+		Tokens:  EstimateTokens(bytes),
 	}
 }
 
@@ -105,6 +118,7 @@ func splitSkillListing(content string) []Component {
 				last := &out[len(out)-1]
 				last.Content += line
 				last.Bytes = len(last.Content)
+				last.Tokens = EstimateTokens(last.Bytes)
 			}
 			continue
 		}
@@ -114,6 +128,7 @@ func splitSkillListing(content string) []Component {
 				last := &out[len(out)-1]
 				last.Content += line
 				last.Bytes = len(last.Content)
+				last.Tokens = EstimateTokens(last.Bytes)
 			}
 			continue
 		}

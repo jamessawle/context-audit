@@ -336,3 +336,41 @@ func TestBuild_RealFixture(t *testing.T) {
 		t.Fatalf("expected skill components from real fixture")
 	}
 }
+
+func TestEstimateTokens(t *testing.T) {
+	// The formula (bytes + 2) / 4 rounds toward nearest with integer
+	// truncation; we assert what it actually produces.
+	cases := []struct {
+		in, want int
+	}{
+		{0, 0},
+		{4, 1},
+		{5, 1},
+		{100, 25},
+		{1024, 256},
+	}
+	for _, c := range cases {
+		if got := EstimateTokens(c.in); got != c.want {
+			t.Errorf("EstimateTokens(%d) = %d, want %d", c.in, got, c.want)
+		}
+	}
+}
+
+func TestNewComponent_PopulatesTokensFromBytes(t *testing.T) {
+	// Components built via newComponent should have Tokens populated at
+	// construction time so renderers don't re-derive on every render.
+	// We exercise this indirectly through Build, which is the only
+	// caller of newComponent.
+	files := []ClaudeMdFile{{Path: "/tmp/CLAUDE.md", Content: "abcd"}} // 4 bytes
+	comps := Build(&jsonl.Session{}, files)
+	if len(comps) != 1 {
+		t.Fatalf("expected 1 component, got %d", len(comps))
+	}
+	got := comps[0]
+	if got.Bytes != 4 {
+		t.Fatalf("Bytes: got %d want 4", got.Bytes)
+	}
+	if got.Tokens != EstimateTokens(4) {
+		t.Fatalf("Tokens: got %d want EstimateTokens(4)=%d", got.Tokens, EstimateTokens(4))
+	}
+}

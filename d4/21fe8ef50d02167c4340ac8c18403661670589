@@ -1,0 +1,13 @@
+go.mod
+  ai_agent 4-20
+internal/report/report.go
+  ai_agent 12-13,43,48,54,56-66,74
+go.sum
+  ai_agent 1-34
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.10",
+  "base_commit_sha": "d421fe8ef50d02167c4340ac8c18403661670589",
+  "prompts": {}
+}

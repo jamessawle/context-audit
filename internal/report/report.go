@@ -13,13 +13,14 @@ import (
 	"github.com/jamessawle/context-audit/internal/components"
 )
 
-// Render writes a four-column table (TOKENS (≈), BYTES, PLUGIN, COMPONENT)
-// to w, sorted by Bytes descending with a stable order preserved for ties.
-// TOKENS is a heuristic estimate from byte length (4 chars/token), useful
-// for ranking but not for exact comparison with /context. BYTES is the raw
-// loaded byte count. PLUGIN is the plugin source (e.g. "pr-management",
-// "built-in", "mcp_server"); empty for hooks and claude_md. COMPONENT is
-// formatted as "<kind>: <label>".
+// Render writes a five-column table (TOKENS (≈), BYTES, TYPE, PLUGIN,
+// COMPONENT) to w, sorted by Bytes descending with a stable order preserved
+// for ties. TOKENS is a heuristic estimate from byte length (4 chars/token),
+// useful for ranking but not for exact comparison with /context. BYTES is
+// the raw loaded byte count. TYPE is the component kind ("skill", "hook",
+// "mcp_server", "claude_md"). PLUGIN is the plugin source (e.g.
+// "pr-management", "built-in"); empty for hooks, claude_md, and MCP servers.
+// COMPONENT is the label.
 //
 // After the table, Render prints a footer with totalTokens — the sum of
 // input_tokens + cache_creation_input_tokens + cache_read_input_tokens
@@ -39,17 +40,18 @@ func Render(w io.Writer, comps []components.Component, totalTokens int) error {
 	})
 
 	tw := tabwriter.NewWriter(w, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(tw, "TOKENS (≈)\tBYTES\tPLUGIN\tCOMPONENT")
+	fmt.Fprintln(tw, "TOKENS (≈)\tBYTES\tTYPE\tPLUGIN\tCOMPONENT")
 	mcpCount := 0
 	for _, c := range sorted {
 		if c.Kind == "mcp_server" && c.Bytes == 0 {
 			mcpCount++
 		}
-		fmt.Fprintf(tw, "%s\t%s\t%s\t%s: %s\n",
+		fmt.Fprintf(tw, "%s\t%s\t%s\t%s\t%s\n",
 			formatTokens(estimateTokens(c.Bytes)),
 			formatBytes(c.Bytes),
+			c.Kind,
 			c.Plugin,
-			c.Kind, c.Label,
+			c.Label,
 		)
 	}
 	if err := tw.Flush(); err != nil {

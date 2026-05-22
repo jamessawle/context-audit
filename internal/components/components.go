@@ -129,6 +129,50 @@ func splitSkillListing(content string) []Component {
 	return out
 }
 
+// normalizeMCPName canonicalises an MCP server name for duplicate detection
+// across the two sources we collect from. The JSONL surfaces names exactly
+// as the tool prefix encodes them (e.g. "claude_ai_Atlassian"), while
+// `claude mcp list` surfaces the configured display name (e.g.
+// "claude.ai Atlassian"). The two refer to the same server, so we strip
+// case and any of `_`, `.`, ` ` before comparing.
+func normalizeMCPName(name string) string {
+	var b strings.Builder
+	b.Grow(len(name))
+	for _, r := range strings.ToLower(name) {
+		switch r {
+		case '_', '.', ' ':
+			continue
+		}
+		b.WriteRune(r)
+	}
+	return b.String()
+}
+
+// DedupMCPServers appends `claude mcp list`-sourced server names to comps
+// as zero-byte mcp_server Components, skipping any whose normalised name
+// already appears as an mcp_server Component in comps. This avoids listing
+// connected servers twice (once from JSONL deferred-tool deltas, once from
+// `claude mcp list`).
+func DedupMCPServers(comps []Component, names []string) []Component {
+	existing := map[string]struct{}{}
+	for _, c := range comps {
+		if c.Kind == "mcp_server" {
+			existing[normalizeMCPName(c.Label)] = struct{}{}
+		}
+	}
+	for _, name := range names {
+		if _, dup := existing[normalizeMCPName(name)]; dup {
+			continue
+		}
+		comps = append(comps, Component{
+			Kind:  "mcp_server",
+			Label: name,
+		})
+		existing[normalizeMCPName(name)] = struct{}{}
+	}
+	return comps
+}
+
 // groupMcpServers groups deferred tool names of the form mcp__<server>__<tool>
 // by server, preserving first-seen server order. Names that do not match the
 // MCP prefix are dropped: they cannot be disabled at the server level and so

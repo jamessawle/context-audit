@@ -263,6 +263,59 @@ func TestBuild_SkillListingLeadingContinuationDropped(t *testing.T) {
 	}
 }
 
+func TestNormalizeMCPName(t *testing.T) {
+	cases := []struct {
+		in, want string
+	}{
+		{"claude_ai_Atlassian", "claudeaiatlassian"},
+		{"claude.ai Atlassian", "claudeaiatlassian"},
+		{"plugin:slack:slack", "plugin:slack:slack"},
+		{"claude.ai Slack", "claudeaislack"},
+		{"claude_ai_Slack", "claudeaislack"},
+	}
+	for _, c := range cases {
+		if got := normalizeMCPName(c.in); got != c.want {
+			t.Errorf("normalizeMCPName(%q) = %q, want %q", c.in, got, c.want)
+		}
+	}
+}
+
+func TestDedupMCPServers_SkipsDuplicates(t *testing.T) {
+	comps := []Component{
+		{Kind: "skill", Label: "fix-pr", Plugin: "pr-management", Bytes: 200},
+		{Kind: "mcp_server", Label: "claude_ai_Atlassian", Bytes: 1500},
+		{Kind: "mcp_server", Label: "plugin_slack_slack", Bytes: 800},
+	}
+	names := []string{
+		"claude.ai Atlassian", // duplicate of claude_ai_Atlassian — skip
+		"claude.ai Gmail",     // new
+		"plugin slack slack",  // duplicate of plugin_slack_slack — skip
+	}
+	got := DedupMCPServers(comps, names)
+	if len(got) != len(comps)+1 {
+		t.Fatalf("want %d components after dedup, got %d: %+v", len(comps)+1, len(got), got)
+	}
+	// Find Gmail row — order in input is preserved among appended entries.
+	var gotGmail bool
+	for _, c := range got {
+		if c.Label == "claude.ai Gmail" {
+			if c.Kind != "mcp_server" || c.Bytes != 0 {
+				t.Errorf("unexpected Gmail row: %+v", c)
+			}
+			gotGmail = true
+		}
+	}
+	if !gotGmail {
+		t.Errorf("expected appended Gmail row, got: %+v", got)
+	}
+	// Original Atlassian row must keep its bytes.
+	for _, c := range got {
+		if c.Label == "claude_ai_Atlassian" && c.Bytes != 1500 {
+			t.Errorf("expected JSONL-sourced Atlassian row preserved with 1500 bytes, got %+v", c)
+		}
+	}
+}
+
 func TestBuild_RealFixture(t *testing.T) {
 	session, err := jsonl.ParseFile("../../testdata/sample-startup.jsonl")
 	if err != nil {

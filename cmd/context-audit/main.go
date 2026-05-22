@@ -68,14 +68,11 @@ func runStartup() error {
 
 	comps := components.Build(session, claudeMds)
 	if servers, err := probe.ListMCPServers(); err == nil {
-		for _, name := range servers {
-			comps = append(comps, components.Component{
-				Kind:   "mcp_server",
-				Label:  name,
-				Plugin: "mcp_server", // distinguishes from skills; also signals zero-bytes row
-				// Bytes & estimated tokens stay 0 — schemas aren't loaded at startup.
-			})
-		}
+		// Dedup against MCP servers already in comps from the JSONL
+		// (deferred-tool delta). The two sources name the same server
+		// differently (e.g. "claude_ai_Atlassian" vs "claude.ai Atlassian"),
+		// so DedupMCPServers normalises both before comparing.
+		comps = components.DedupMCPServers(comps, servers)
 	}
 	totalTokens := session.InputTokens + session.CacheCreationInputTokens + session.CacheReadInputTokens
 	return report.Render(os.Stdout, comps, totalTokens)

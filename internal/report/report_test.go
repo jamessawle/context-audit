@@ -44,14 +44,15 @@ func TestRender_HeaderRowPresent(t *testing.T) {
 	out := buf.String()
 	tokensIdx := strings.Index(out, "TOKENS")
 	bytesIdx := strings.Index(out, "BYTES")
+	typeIdx := strings.Index(out, "TYPE")
 	pluginIdx := strings.Index(out, "PLUGIN")
 	compIdx := strings.Index(out, "COMPONENT")
-	if tokensIdx < 0 || bytesIdx < 0 || pluginIdx < 0 || compIdx < 0 {
-		t.Fatalf("expected TOKENS, BYTES, PLUGIN, COMPONENT header columns in:\n%s", out)
+	if tokensIdx < 0 || bytesIdx < 0 || typeIdx < 0 || pluginIdx < 0 || compIdx < 0 {
+		t.Fatalf("expected TOKENS, BYTES, TYPE, PLUGIN, COMPONENT header columns in:\n%s", out)
 	}
-	if !(tokensIdx < bytesIdx && bytesIdx < pluginIdx && pluginIdx < compIdx) {
-		t.Fatalf("expected header order TOKENS < BYTES < PLUGIN < COMPONENT, got positions %d/%d/%d/%d in:\n%s",
-			tokensIdx, bytesIdx, pluginIdx, compIdx, out)
+	if !(tokensIdx < bytesIdx && bytesIdx < typeIdx && typeIdx < pluginIdx && pluginIdx < compIdx) {
+		t.Fatalf("expected header order TOKENS < BYTES < TYPE < PLUGIN < COMPONENT, got positions %d/%d/%d/%d/%d in:\n%s",
+			tokensIdx, bytesIdx, typeIdx, pluginIdx, compIdx, out)
 	}
 	if strings.Contains(out, "ACTION") {
 		t.Fatalf("expected no ACTION column, got:\n%s", out)
@@ -71,18 +72,24 @@ func TestRender_PluginColumnPopulated(t *testing.T) {
 	lines := strings.Split(out, "\n")
 	var hookLine, skillLine string
 	for _, l := range lines {
-		if strings.Contains(l, "hook: SessionStart") {
+		if strings.Contains(l, "SessionStart") {
 			hookLine = l
 		}
-		if strings.Contains(l, "skill: fix-pr") {
+		if strings.Contains(l, "fix-pr") {
 			skillLine = l
 		}
 	}
 	if hookLine == "" || skillLine == "" {
 		t.Fatalf("missing expected rows in:\n%s", out)
 	}
+	if !strings.Contains(skillLine, "skill") {
+		t.Errorf("expected TYPE 'skill' in skill row, got: %q", skillLine)
+	}
 	if !strings.Contains(skillLine, "pr-management") {
 		t.Errorf("expected pr-management in skill row, got: %q", skillLine)
+	}
+	if !strings.Contains(hookLine, "hook") {
+		t.Errorf("expected TYPE 'hook' in hook row, got: %q", hookLine)
 	}
 	// hook row should not contain a plugin name
 	if strings.Contains(hookLine, "pr-management") || strings.Contains(hookLine, "built-in") {
@@ -113,8 +120,8 @@ func TestEstimateTokens(t *testing.T) {
 
 func TestRender_MCPServerFooterNote(t *testing.T) {
 	comps := []components.Component{
-		{Kind: "mcp_server", Label: "slack", Plugin: "mcp_server", Bytes: 0},
-		{Kind: "mcp_server", Label: "gmail", Plugin: "mcp_server", Bytes: 0},
+		{Kind: "mcp_server", Label: "slack", Bytes: 0},
+		{Kind: "mcp_server", Label: "gmail", Bytes: 0},
 	}
 	var buf bytes.Buffer
 	if err := Render(&buf, comps, 1000); err != nil {

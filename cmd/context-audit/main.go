@@ -12,7 +12,7 @@ import (
 	"github.com/jamessawle/context-audit/internal/components"
 	"github.com/jamessawle/context-audit/internal/jsonl"
 	"github.com/jamessawle/context-audit/internal/probe"
-	"github.com/jamessawle/context-audit/internal/report"
+	"github.com/jamessawle/context-audit/internal/tsv"
 	"github.com/jamessawle/context-audit/internal/tui"
 )
 
@@ -49,12 +49,20 @@ func runStartup() error {
 		return fmt.Errorf("claude CLI not found on PATH; install Claude Code (https://claude.com/claude-code) before running context-audit")
 	}
 
-	fmt.Fprintln(os.Stderr, "Probing harness context — spawning a short Claude session (~10s, costs a few cents)...")
+	stdoutIsTTY := isatty.IsTerminal(os.Stdout.Fd())
+
+	// The progress message is for humans; suppress it when piping so it
+	// doesn't appear above stdout data in the user's terminal.
+	if stdoutIsTTY {
+		fmt.Fprintln(os.Stderr, "Probing harness context — spawning a short Claude session (~10s, costs a few cents)...")
+	}
 	jsonlPath, err := probe.Run(home, cwd)
 	if err != nil {
 		return err
 	}
-	fmt.Fprintln(os.Stderr) // blank line between status output and the table
+	if stdoutIsTTY {
+		fmt.Fprintln(os.Stderr) // blank line between status output and the TUI
+	}
 
 	session, err := jsonl.ParseFile(jsonlPath)
 	if err != nil {
@@ -82,9 +90,10 @@ func runStartup() error {
 
 	// If stdout is a real terminal, launch the interactive TUI. When the
 	// caller pipes output (e.g. `context-audit --startup > out.txt` or
-	// `| less`), fall back to the static report so scripts still work.
-	if isatty.IsTerminal(os.Stdout.Fd()) {
+	// `| awk ...`), emit raw TSV with `#`-prefixed metadata comments
+	// so downstream tools can consume it cleanly.
+	if stdoutIsTTY {
 		return tui.Run(comps, totalTokens)
 	}
-	return report.Render(os.Stdout, comps, totalTokens)
+	return tsv.Render(os.Stdout, comps, totalTokens)
 }

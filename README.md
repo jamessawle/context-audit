@@ -27,15 +27,31 @@ go install github.com/jamessawle/context-audit/cmd/context-audit@latest
 context-audit --startup
 ```
 
-Run from the directory you want to audit. The tool spawns a single Claude session whose only purpose is to record the harness's start-up context, then prints components ranked by **byte size**.
+Run from the directory you want to audit. The tool spawns a single Claude session whose only purpose is to record the harness's start-up context, then opens an interactive TUI for inspecting components ranked by size.
 
 **Cost:** one short probe call per run, using whichever model your `claude` CLI is configured to default to (so the measurement matches what you'd see in `/context` for a real interactive session — different models receive different harness content). Cold-cache cost on Opus is roughly $0.60; subsequent warm-cache runs within ~5 minutes are an order of magnitude cheaper. No API key needed beyond a working `claude` CLI.
 
-**Output:** a five-column table — `TOKENS (≈)  BYTES  TYPE  PLUGIN  COMPONENT` — sorted by bytes descending. The TOKENS column is a heuristic estimate (4 chars/token); use it for ranking, not exact comparison with `/context`. The TYPE column classifies each row as `skill`, `hook`, `mcp_server`, or `claude_md`. The PLUGIN column groups skills by their source (`pr-management`, `superpowers`, `built-in`, …) so you can see at a glance which plugin is eating context; hooks, `CLAUDE.md`, and MCP server rows leave it blank. The COMPONENT column is the component's name. Below the table, a footer reports the harness's recorded input-token total for orientation — this includes the built-in system prompt and built-in tool schemas, which are not broken down per row (they aren't actionable individually).
+**Output, by stdout type:**
+
+- **Terminal (TTY):** an interactive TUI with a sortable table on top and a content-preview pane underneath. See key bindings below.
+- **Pipe / redirect:** raw TSV on stdout. Metadata (`# Total: …`, `# On-demand MCP servers: …`) is emitted as `#`-prefixed comment lines at the top of the same stream, followed by a header row (`tokens\tbytes\tkind\tplugin\tlabel`) and the data rows. Standard `awk` numeric filters skip the comment lines naturally. The "Probing…" status line is suppressed when piping.
+
+Example pipelines:
+
+```sh
+# Rows with > 500 tokens
+context-audit --startup | awk -F'\t' 'NR > 1 && $1 > 500'
+
+# Drop into a spreadsheet
+context-audit --startup > audit.tsv
+
+# Sum bytes by kind
+context-audit --startup | awk -F'\t' 'NR > 1 {b[$3] += $2} END {for (k in b) print k, b[k]}'
+```
 
 ## Interactive use
 
-When `context-audit --startup` is run in a real terminal, it opens an interactive TUI with a sortable table on top and a preview pane underneath showing the loaded content of the highlighted component. Useful for "why is this hook so big?" without having to grep through JSONL by hand.
+In a TTY the tool opens an interactive TUI with a sortable table on top and a preview pane underneath showing the loaded content of the highlighted component. Useful for "why is this hook so big?" without having to grep through JSONL by hand.
 
 Key bindings:
 
@@ -48,6 +64,5 @@ Key bindings:
 - `Esc` (outside filter mode) — clear the active filter
 - `q` / `Ctrl+C` — quit
 
-When stdout is piped or redirected (`context-audit --startup > out.txt`, `| less`, etc.) the tool falls back to the static table so scripts and pagers still work.
 
 **Limitation:** MCP server tool *schemas* are not captured at startup. `claude -p` mode skips MCP server initialisation, so the deferred-tools attachment is never written to the probe's JSONL. As a partial mitigation, configured MCP servers are enumerated via `claude mcp list` and listed as zero-sized rows so you can see what's wired up — full per-server schema sizes are tracked in [#2](https://github.com/jamessawle/context-audit/issues/2).

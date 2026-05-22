@@ -118,6 +118,7 @@ func splitSkillListing(content string) []Component {
 				last := &out[len(out)-1]
 				last.Content += line
 				last.Bytes = len(last.Content)
+				last.Tokens = EstimateTokens(last.Bytes)
 			}
 			continue
 		}
@@ -127,6 +128,7 @@ func splitSkillListing(content string) []Component {
 				last := &out[len(out)-1]
 				last.Content += line
 				last.Bytes = len(last.Content)
+				last.Tokens = EstimateTokens(last.Bytes)
 			}
 			continue
 		}

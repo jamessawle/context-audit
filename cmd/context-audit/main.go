@@ -16,12 +16,22 @@ import (
 	"github.com/jamessawle/context-audit/internal/tui"
 )
 
+// version is the binary's reported version. Bumped per release; we don't
+// currently inject via ldflags because the project is small enough that a
+// hardcoded const is easier to reason about than build-time substitution.
+const version = "0.1.1"
+
 func main() {
 	startup := flag.Bool("startup", false, "Audit harness context at a fresh session start")
+	showVersion := flag.Bool("version", false, "Print version and exit")
 	flag.Parse()
 
+	if *showVersion {
+		fmt.Println(version)
+		return
+	}
 	if !*startup {
-		fmt.Fprintln(os.Stderr, "context-audit v0.1 requires --startup")
+		fmt.Fprintln(os.Stderr, "context-audit requires --startup (or --version)")
 		os.Exit(2)
 	}
 	if err := runStartup(); err != nil {

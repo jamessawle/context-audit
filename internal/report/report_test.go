@@ -97,27 +97,6 @@ func TestRender_PluginColumnPopulated(t *testing.T) {
 	}
 }
 
-func TestEstimateTokens(t *testing.T) {
-	// NOTE: the formula `(bytes + 2) / 4` rounds toward nearest with
-	// integer truncation. The spec listed {5→2, 100→26} which the
-	// formula cannot produce; those expected values are inconsistent
-	// with the formula. We assert what the formula actually produces.
-	cases := []struct {
-		in, want int
-	}{
-		{0, 0},
-		{4, 1},
-		{5, 1},
-		{100, 25},
-		{1024, 256},
-	}
-	for _, c := range cases {
-		if got := estimateTokens(c.in); got != c.want {
-			t.Errorf("estimateTokens(%d) = %d, want %d", c.in, got, c.want)
-		}
-	}
-}
-
 func TestRender_MCPServerFooterNote(t *testing.T) {
 	comps := []components.Component{
 		{Kind: "mcp_server", Label: "slack", Bytes: 0},

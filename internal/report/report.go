@@ -46,7 +46,7 @@ func Render(w io.Writer, comps []components.Component, totalTokens int) error {
 			mcpCount++
 		}
 		rows = append(rows, []string{
-			formatTokens(estimateTokens(c.Bytes)),
+			formatTokens(c.Tokens),
 			formatBytes(c.Bytes),
 			c.Kind,
 			c.Plugin,
@@ -75,15 +75,6 @@ func Render(w io.Writer, comps []components.Component, totalTokens int) error {
 		return err
 	}
 	return nil
-}
-
-// estimateTokens approximates the token count from byte length.
-// Uses a fixed 4 chars/token heuristic. Accurate to within ~30% for
-// English/code; suitable for ranking but not for exact comparison with
-// /context. The footer total comes from the harness's own count and is
-// exact.
-func estimateTokens(bytes int) int {
-	return (bytes + 2) / 4 // round to nearest
 }
 
 // formatBytes returns "5.8 KB", "1.2 MB", "133 B" etc.

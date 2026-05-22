@@ -389,7 +389,7 @@ func buildRows(comps []components.Component) []table.Row {
 	rows := make([]table.Row, 0, len(comps))
 	for _, c := range comps {
 		rows = append(rows, table.Row{
-			formatTokens(estimateTokens(c.Bytes)),
+			formatTokens(c.Tokens),
 			formatBytes(c.Bytes),
 			c.Kind,
 			c.Plugin,
@@ -399,13 +399,12 @@ func buildRows(comps []components.Component) []table.Row {
 	return rows
 }
 
-// estimateTokens, formatBytes, formatTokens duplicate the helpers in
-// internal/report so the TUI doesn't need to import that package
-// (which would invert the dependency direction). The 4 chars/token
-// heuristic, 1024-based byte units, and lowercase k/M magnitude suffix
-// match report.go exactly.
-func estimateTokens(b int) int { return (b + 2) / 4 }
-
+// formatBytes and formatTokens duplicate the helpers in internal/report
+// so the TUI doesn't need to import that package (which would invert the
+// dependency direction). The 1024-based byte units and lowercase k/M
+// magnitude suffix match report.go exactly. Token estimation itself is
+// no longer a presentation-layer concern — components.EstimateTokens
+// computes it once at build time.
 func formatBytes(n int) string {
 	const unit = 1024
 	if n < unit {
